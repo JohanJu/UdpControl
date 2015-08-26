@@ -16,30 +16,54 @@ typedef struct cmd {
 
 void update() {
   int size = udp.parsePacket();
-  if (size > 0) {
+  if (size%3 == 2) {
+    byte i = 0, oldSum = 0, newSum = 0, flag = 0xaa;
     byte* msg = (byte*)malloc(size + 1);
     int len = udp.read(msg, size + 1);
     msg[len] = 0;
     byte* now = msg;
-    cmd c [10];
-    memset(&c, 0, sizeof(cmd) * 10);
-    byte i = 0;
-    while (*now != 0) {
+    if (*now != flag) {
+      free(msg);
+      Serial.println ("wrong flag");
+      udp.stop();
+      udp.begin(8000);
+      return;
+    }
+    now ++;
+    oldSum = *now;
+    now ++;
+    cmd c [8];
+    memset(&c, 0, sizeof(cmd) * 8);
+    while (*now != 0) {    
       c[i].typ = *now;
+      newSum += *now;
       now++;
       c[i].pin = *now;
+      newSum += *now;
       now++;
       c[i].val = *now;
+      newSum += *now;
       now++;
       i++;
     }
     free(msg);
+    if (oldSum != newSum) {
+      Serial.println (oldSum);
+      Serial.println (newSum);
+      Serial.println ("wrong checksum");
+      udp.stop();
+      udp.begin(8000);
+      return;
+    }
     for (byte j = 0; j < i; j++) {
       Serial.printf("X %d %d %d X\n", c[j].typ , c[j].pin , c[j].val);
     }
-
     udp.stop();
-    Serial.println (udp.begin(8000) ? "success" : "failed");
+    udp.begin(8000);
+  } else if (size > 0) {
+    Serial.println ("wrong size");
+    udp.stop();
+    udp.begin(8000);
   }
 
 }
